@@ -1,7 +1,7 @@
 """
 Title: Application for a simple caesar cipher w/ optional file output
 Author: Primus27
-Version: 1.3
+Version: 1.4
 """
 
 # Import packages
@@ -10,13 +10,7 @@ import re
 from getpass import getuser
 from sys import exit
 from time import sleep
-
-try:
-    from pyfiglet import Figlet
-except ImportError:
-    print("'pyfiglet' module is missing. Closing application (10s)")
-    sleep(10)
-    exit()
+from title_generator import TitleGen
 
 
 class CaesarCipher:
@@ -37,12 +31,9 @@ class CaesarCipher:
         self.decrypt_flag = to_decrypt_flag
 
         # Set purpose and start message info (for feedback and file output)
-        if self.decrypt_flag:
-            self.purpose = "decrypt"
-            self.start_message_type = "encrypted"
-        else:
-            self.purpose = "encrypt"
-            self.start_message_type = "plaintext"
+        self.purpose = "decrypt" if self.decrypt_flag else "encrypt"
+        self.start_message_type = "encrypted" if self.decrypt_flag \
+            else "plaintext"
 
         # Set input message by calling message_prompt
         self.input_message = self.message_prompt()
@@ -60,12 +51,12 @@ class CaesarCipher:
             self.num_shift = 0
 
         # User shift response sanitised for output (no negative values)
-        formatted_shift = "{a}.{n}".format(a=(self.alpha_shift % len(
+        self.formatted_shift = "{a}.{n}".format(a=(self.alpha_shift % len(
             self.alpha_set)), n=(self.num_shift % len(self.num_set)))
         # If elements haven't been shifted, remove that value
-        if "0" in formatted_shift:
-            self.formatted_shift = formatted_shift.replace("0", "").replace(
-                ".", "")
+        if "0" in self.formatted_shift:
+            self.formatted_shift = self.formatted_shift.replace("0", "").\
+                replace(".", "")
 
         # Decryption shift correction (if function used for decryption)
         if self.decrypt_flag:
@@ -125,10 +116,7 @@ class CaesarCipher:
         # Calculate what character the new index maps to
         for index, item in enumerate(type_char):
             if new_index == index:
-                if uppercase_flag:
-                    return str(item).upper()
-                else:
-                    return item
+                return str(item).upper() if uppercase_flag else str(item)
 
     def encrypt_decrypt_message(self):
         """
@@ -206,11 +194,9 @@ def main_menu(file_output_flag):
     :param file_output_flag: Whether attributes should be output to file
     :return: Boolean on whether file is to be output and/or message decrypted
     """
-    file_output_icon = " "
-    alt_file_output_flag = True  # Opposite of file_output_flag if user toggles
-    if file_output_flag:
-        file_output_icon = "X"
-        alt_file_output_flag = False
+    file_output_icon = "X" if file_output_flag else " "
+    # Opposite of file_output_flag if user toggles
+    alt_file_output_flag = False if file_output_flag else True
 
     choice = None
     available_choices = [1, 2, 3, 4]
@@ -247,7 +233,7 @@ def main_menu(file_output_flag):
             # Close application
             elif choice == 4:
                 print("Application closing...")
-                sleep(5)
+                sleep(3)
                 exit()
 
             else:
@@ -261,7 +247,11 @@ def main():
     """
     Main function
     """
-    title_card()
+    # Output title
+    title = TitleGen(text="Caesar Cipher", author="Primus27").title
+    print(title)
+
+    # Application
     while True:
         # Call main menu and return params for encryption/decryption
         menu_choice = main_menu(False)
@@ -280,37 +270,6 @@ def main():
         print(separator(line=True, linefeed_post=True))
 
 
-def title_card():
-    """
-    Displays the ASCII title card
-    """
-    # Elements to change
-    text = "Caesar Cipher"
-    font = "big"  # Font database: http://www.figlet.org/fontdb.cgi
-    title_credits = "By Primus27"
-    width = 79  # Increase value to output text on one line
-    justify = "left"  # Align "left" (default), "center" or "right"
-
-    # Create Figlet object
-    banner = Figlet(font=font, justify=justify, width=width).renderText(text)
-    # Split banner into a list
-    banner_list = re.split("\n", banner)
-    # Target the second to last line
-    target = len(banner_list) - 2
-    # Remove characters in target line
-    banner_list[target] = banner_list[target][(len(title_credits)):]
-    # Add credits to target line
-    banner_list[target] = re.sub("^", title_credits, banner_list[target])
-
-    # Output banner with whitespace between ascii words removed
-    new_banner = []
-    for line in banner_list:
-        if not line.isspace():
-            new_banner.append(line)
-    for line in new_banner:
-        print(line)
-
-
 def yes_no_prompt(feedback):
     """
     A yes/no prompt to eliminate repeated code
@@ -319,9 +278,9 @@ def yes_no_prompt(feedback):
     """
     while True:
         response = input(feedback.lower())
-        if response == "y" or response == "yes":
+        if response in ["yes", "y"]:
             return True
-        elif response == "n" or response == "no":
+        elif response in ["no", "n"]:
             return False
 
 

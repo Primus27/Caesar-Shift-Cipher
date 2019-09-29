@@ -38,3 +38,5 @@
  - Code refactored
  - Removed improved menu from v1.2 (Added bugs)
  - Added dynamic ASCII art
+#### Version 1.4
+ - Code refactored
