@@ -1,18 +1,314 @@
 """
 Title: Application for a simple caesar cipher w/ optional file output
 Author: Primus27
-Version: 1.2
+Version: 1.3
 """
 
 # Import packages
-from os import path
+import os
+import re
 from getpass import getuser
 from sys import exit
-from re import search
+from time import sleep
 
-# Declare character set
-alpha_set = "abcdefghijklmnopqrstuvwxyz"
-num_set = "0123456789"
+try:
+    from pyfiglet import Figlet
+except ImportError:
+    print("'pyfiglet' module is missing. Closing application (10s)")
+    sleep(10)
+    exit()
+
+
+class CaesarCipher:
+    """
+    Prompts user to encrypt/decrypt a cipher w/ optional file output.
+    """
+    def __init__(self, file_out_flag=False, to_decrypt_flag=False):
+        """
+        Constructor method
+        :param file_out_flag: Whether attributes should be output to file
+        :param to_decrypt_flag: Whether the purpose is to decrypt
+        """
+        # Character set
+        self.alpha_set = "abcdefghijklmnopqrstuvwxyz"
+        self.num_set = "0123456789"
+
+        self.file_output_flag = file_out_flag
+        self.decrypt_flag = to_decrypt_flag
+
+        # Set purpose and start message info (for feedback and file output)
+        if self.decrypt_flag:
+            self.purpose = "decrypt"
+            self.start_message_type = "encrypted"
+        else:
+            self.purpose = "encrypt"
+            self.start_message_type = "plaintext"
+
+        # Set input message by calling message_prompt
+        self.input_message = self.message_prompt()
+
+        # Check message contains elements and prompt for appropriate shift
+        # If message contains NOT only digits (letters, symbols, etc)
+        if not self.input_message.isdigit():
+            self.alpha_shift = self.shift_prompt("letters")
+        else:
+            self.alpha_shift = 0
+        # If message contains digits
+        if bool(re.search(r'\d', self.input_message)):
+            self.num_shift = self.shift_prompt("numbers")
+        else:
+            self.num_shift = 0
+
+        # User shift response sanitised for output (no negative values)
+        formatted_shift = "{a}.{n}".format(a=(self.alpha_shift % len(
+            self.alpha_set)), n=(self.num_shift % len(self.num_set)))
+        # If elements haven't been shifted, remove that value
+        if "0" in formatted_shift:
+            self.formatted_shift = formatted_shift.replace("0", "").replace(
+                ".", "")
+
+        # Decryption shift correction (if function used for decryption)
+        if self.decrypt_flag:
+            self.alpha_shift = len(self.alpha_set) - self.alpha_shift
+            self.num_shift = len(self.num_set) - self.num_shift
+
+        # Altered/final message
+        self.output_message = self.encrypt_decrypt_message()
+
+    def message_prompt(self):
+        """
+        Prompt the user for their input message
+        :return: Input message
+        """
+        while True:
+            message = input(
+                "[?] Please enter a message to {}:".format(self.purpose))
+            if message != "":
+                return message
+
+    @staticmethod
+    def shift_prompt(char_set_message):
+        """
+        Allows user to enter how much a character should be shifted by
+        :param char_set_message: Declare character set to target
+        :return: The shift for a specific character set
+        """
+        while True:
+            try:
+                shift_val = int(input("[?] Enter a shift for the {}:"
+                                      .format(char_set_message)))
+                if shift_val < 0:
+                    print("[*] Shift cannot be less than zero.")
+                else:
+                    return shift_val
+            except ValueError:
+                print("[*] Input is not a number.")
+
+    @staticmethod
+    def shift_char(char, type_char, shift):
+        """
+        Shifts a single character a defined amount
+        :param char: The character to be shifted
+        :param type_char: The character set that will be used
+        :param shift: The shift value
+        :return: The shifted character
+        """
+        uppercase_flag = char.isupper()
+        new_index = None  # Current position
+
+        # Find index values for each character and match to targeted character
+        for index, item in enumerate(type_char):
+            if char.lower() == item:
+                # New index (e.g. 0-25 for alpha characters)
+                new_index = (index + shift) % len(type_char)
+
+        # Calculate what character the new index maps to
+        for index, item in enumerate(type_char):
+            if new_index == index:
+                if uppercase_flag:
+                    return str(item).upper()
+                else:
+                    return item
+
+    def encrypt_decrypt_message(self):
+        """
+        A function that encrypts/decrypts the plaintext/encrypted message
+        :return: The encrypted/decrypted message
+        """
+        # Generate the encrypted/decrypted message
+        new_message = ""
+        for char in self.input_message:
+            # Character is a letter
+            if char.lower() in self.alpha_set:
+                shifted_char = self.shift_char(
+                    char, self.alpha_set, self.alpha_shift)
+
+            # Character is a number
+            elif char in self.num_set:
+                shifted_char = self.shift_char(
+                    char, self.num_set, self.num_shift)
+
+            # Character is punctuation
+            else:
+                shifted_char = char
+            new_message += shifted_char
+        return new_message
+
+    def output_file(self):
+        """
+        A function to output class attributes to a file
+        """
+        # Prompt for whether the input message, shift and purpose are included
+        include_original_flag = yes_no_prompt(
+            "[?] Do you want to include the {} message (y/n)? ".format(
+                self.start_message_type))
+
+        # Get username of current machine and set file path of desktop
+        username = getuser()
+        f_path = os.path.join(
+            "c:/", "users", username, "desktop", "cipher.txt")
+
+        # Open file and append
+        try:
+            with open(f_path, "a") as f:
+                buffer = []
+
+                # Data already exists in the file
+                if os.path.exists(f_path) and os.path.getsize(f_path) > 0:
+                    f.write("\n")
+
+                if include_original_flag:
+                    advanced_output = ["Input:", self.input_message, "",
+                                       "Purpose: " + self.purpose.capitalize(),
+                                       "Shift: " + self.formatted_shift, ""]
+                    buffer.extend(advanced_output)
+
+                simple_output = ["Output:", self.output_message, separator(
+                    line=True)]
+                buffer.extend(simple_output)
+
+                # Add a carriage return at end of each value in buffer list
+                f.writelines("%s\n" % line for line in buffer)
+            print("[*] Saved to Desktop")
+
+        # Inadequate permission to access location / save to location
+        except PermissionError:
+            print("[*] Error saving to Desktop- Permission denied")
+        # Could not find desktop path
+        except OSError:
+            print("[*] Error saving to Desktop - Path issues\n"
+                  "Path: {}".format(f_path))
+
+
+def main_menu(file_output_flag):
+    """
+    A function for the main menu / start screen
+    :param file_output_flag: Whether attributes should be output to file
+    :return: Boolean on whether file is to be output and/or message decrypted
+    """
+    file_output_icon = " "
+    alt_file_output_flag = True  # Opposite of file_output_flag if user toggles
+    if file_output_flag:
+        file_output_icon = "X"
+        alt_file_output_flag = False
+
+    choice = None
+    available_choices = [1, 2, 3, 4]
+
+    # User input invalid or not set
+    while choice not in available_choices:
+        try:
+            print("1. Encrypt")
+            print("2. Decrypt")
+            print("3. Toggle file output")
+            print("4. Exit")
+            print("[{}] Save to Desktop".format(file_output_icon))
+            print(separator(linefeed_pre=True))
+
+            choice = int(input("[?] Option:"))
+            print(separator(line=True, linefeed_post=True))
+
+            if choice == 1:
+                decrypt_flag = False
+                return file_output_flag, decrypt_flag
+
+            elif choice == 2:
+                decrypt_flag = True
+                return file_output_flag, decrypt_flag
+
+            # Recursive. Calls main menu
+            elif choice == 3:
+                menu_result = main_menu(alt_file_output_flag)
+
+                file_output_flag = menu_result[0]
+                decrypt_flag = menu_result[1]
+                return file_output_flag, decrypt_flag
+
+            # Close application
+            elif choice == 4:
+                print("Application closing...")
+                sleep(5)
+                exit()
+
+            else:
+                print("[*] Input must be a valid number.")
+        except ValueError:
+            print("[*] Input must be a valid number.")
+            print(separator(line=True, linefeed_post=True))
+
+
+def main():
+    """
+    Main function
+    """
+    title_card()
+    while True:
+        # Call main menu and return params for encryption/decryption
+        menu_choice = main_menu(False)
+        file_out_flag = menu_choice[0]
+        to_decrypt_flag = menu_choice[1]
+
+        # Create new cipher object and output to a file if enabled
+        new_cipher = CaesarCipher(file_out_flag, to_decrypt_flag)
+        if file_out_flag:
+            new_cipher.output_file()
+
+        # Display encrypted/decrypted message to terminal
+        print(separator(linefeed_pre=True))
+        print("{}ed message:".format(new_cipher.purpose.capitalize()))
+        print(new_cipher.output_message)
+        print(separator(line=True, linefeed_post=True))
+
+
+def title_card():
+    """
+    Displays the ASCII title card
+    """
+    # Elements to change
+    text = "Caesar Cipher"
+    font = "big"  # Font database: http://www.figlet.org/fontdb.cgi
+    title_credits = "By Primus27"
+    width = 79  # Increase value to output text on one line
+    justify = "left"  # Align "left" (default), "center" or "right"
+
+    # Create Figlet object
+    banner = Figlet(font=font, justify=justify, width=width).renderText(text)
+    # Split banner into a list
+    banner_list = re.split("\n", banner)
+    # Target the second to last line
+    target = len(banner_list) - 2
+    # Remove characters in target line
+    banner_list[target] = banner_list[target][(len(title_credits)):]
+    # Add credits to target line
+    banner_list[target] = re.sub("^", title_credits, banner_list[target])
+
+    # Output banner with whitespace between ascii words removed
+    new_banner = []
+    for line in banner_list:
+        if not line.isspace():
+            new_banner.append(line)
+    for line in new_banner:
+        print(line)
 
 
 def yes_no_prompt(feedback):
@@ -29,229 +325,23 @@ def yes_no_prompt(feedback):
             return False
 
 
-def rotate_prompt(char_set_message):
+def separator(line=False, linefeed_pre=False, linefeed_post=False):
     """
-    Allows user to enter how much a character should be shifted by
-    :param char_set_message: Declare what character set is targeted (for input)
-    :return: The shift for a specific character set
-    """
-    while True:
-        try:
-            shift_val = int(input("[?] Enter a shift for {}:"
-                                  .format(char_set_message)))
-            if shift_val < 0:
-                print("[*] Shift cannot be less than zero.")
-            else:
-                return shift_val
-        except ValueError:
-            print("[*] Input is not a number.")
-
-
-def shift_char(char, type_char, shift):
-    """
-    Rotates a single character a defined amount
-    :param char: The character to be rotated
-    :param type_char: The character set that will be used
-    :param shift: The shift value
-    :return: The rotated character
-    """
-    uppercase_flag = char.isupper()
-    new_index = None  # Current position
-    for index, item in enumerate(type_char):
-        if char.lower() == item:
-            # New index (e.g. 0-25 for alpha characters)
-            new_index = (index + shift) % len(type_char)
-    for index, item in enumerate(type_char):
-        if new_index == index:  # Map the new index to a character in the list
-            if uppercase_flag:
-                return str(item).upper()
-            else:
-                return item
-
-
-def output_file(input_message, output_message, shift, decrypt_flag):
-    """
-    A function to output recent operations to a file
-    :param input_message: The original message - can be plaintext / encrypted
-    :param output_message: The altered message - can be encrypted / plaintext
-    :param shift: The ROT shift value
-    :param decrypt_flag: Whether decryption was performed
-    """
-    if decrypt_flag:
-        feedback = "encrypted"
-        purpose = "Purpose: Decrypt"
-    else:
-        feedback = "plaintext"
-        purpose = "Purpose: Encrypt"
-
-    print(separator(carriage_pre=True))
-    include_original_flag = yes_no_prompt("[?] Do you want to include the {} "
-                                          "message (y/n)? ".format(feedback))
-
-    username = getuser()
-    f_path = path.join("c:/", "users", username, "desktop", "cipher.txt")
-    shift_formatted = "Shift: {}".format(shift)
-
-    try:
-        with open(f_path, "a") as f:
-            buffer = []
-            # Existing data in file
-            if path.exists(f_path) and path.getsize(f_path) > 0:
-                f.write("\n")
-            if include_original_flag:
-                advanced_output = ["Input:", input_message, "", purpose,
-                                   shift_formatted, ""]
-                buffer.extend(advanced_output)
-            simple_output = ["Output:", output_message, separator(line=True)]
-            buffer.extend(simple_output)
-            # Add a carriage return at end of each value in list
-            f.writelines("%s\n" % line for line in buffer)
-        print("[*] Saved to Desktop")
-    # Inadequate permission to access location
-    except PermissionError:
-        print("[*] Error saving to Desktop- Permission denied")
-    # Could not find desktop
-    except OSError:
-        print("[*] Error saving to Desktop - Path issues")
-        print("Path: {}".format(path))
-
-
-def title_card():
-    """
-    A function to display the title card / credits
-    """
-    print("  _____       _         _   _ _         _   _                _____ _       _               ")
-    print(" / ____|     | |       | | (_) |       | | (_)              / ____(_)     | |              ")
-    print("| (___  _   _| |__  ___| |_ _| |_ _   _| |_ _  ___  _ __   | |     _ _ __ | |__   ___ _ __ ")
-    print(" \___ \| | | | '_ \/ __| __| | __| | | | __| |/ _ \| '_ \  | |    | | '_ \| '_ \ / _ \ '__|")
-    print(" ____) | |_| | |_) \__ \ |_| | |_| |_| | |_| | (_) | | | | | |____| | |_) | | | |  __/ |   ")
-    print("|_____/ \__,_|_.__/|___/\__|_|\__|\__,_|\__|_|\___/|_| |_|  \_____|_| .__/|_| |_|\___|_|   ")
-    print("                                                                    | |                    ")
-    print(" By Primus27                                                        |_|                    ")
-    print()
-
-
-def encrypt_message(file_output_flag, decrypt_flag=False):
-    """
-    A function that encrypts/decrypts the plaintext/encrypted message
-    :param file_output_flag: Whether the message should be saved to a file
-    :param decrypt_flag: A flag for when the function is used for decryption
-    :return: The encrypted/decrypted message
-    """
-    # Input message
-    purpose = "encrypt"
-    if decrypt_flag:
-        purpose = "decrypt"
-    while True:
-        message = input("[?] Please enter a message to {}:".format(purpose))
-        if message != "":
-            break
-
-    # Check message contains elements and input shift
-    if not message.isdigit():  # If message is not only digits
-        alpha_shift = rotate_prompt("letters")
-    else:
-        alpha_shift = 0
-    if bool(search(r'\d', message)):  # Regex. If message contains digits...
-        num_shift = rotate_prompt("numbers")
-    else:
-        num_shift = 0
-
-    # User shift response sanitised for output (no negative values)
-    user_input_shift = (alpha_shift % len(alpha_set), num_shift % len(num_set))
-
-    # Decryption shift correction (if function used for decryption)
-    if decrypt_flag:
-        alpha_shift = len(alpha_set) - alpha_shift
-        num_shift = len(num_set) - num_shift
-
-    # Generate the encrypted/decrypted message
-    new_message = ""
-    for char in message:  # Characters in original message
-        if char.lower() in alpha_set:
-            shifted_char = shift_char(char, alpha_set, alpha_shift)
-        elif char in num_set:
-            shifted_char = shift_char(char, num_set, num_shift)
-        else:
-            shifted_char = char
-        new_message += shifted_char
-
-    # Output encrypted message to terminal
-    print(separator(carriage_pre=True))
-    print("{}ed message:".format(purpose.capitalize()))
-    print(new_message)
-
-    # Save to file
-    if file_output_flag:
-        shift = "{a}.{n}".format(a=user_input_shift[0], n=user_input_shift[1])
-        output_file(message, new_message, shift, decrypt_flag)
-
-    # Call main menu
-    print(separator(line=True, carriage_post=True))
-    main_menu(False)
-
-
-def separator(line=False, carriage_pre=False, carriage_post=False):
-    """
-    Function to return ASCII elements to distinguish menu sections
+    Function to return elements to distinguish menu sections
     :param line: Bool for a dashed line
-    :param carriage_pre: Bool for a carriage return before the line
-    :param carriage_post: Bool for a carriage return after the line
+    :param linefeed_pre: Bool for a linefeed before the dashed line
+    :param linefeed_post: Bool for a linefeed after the dashed line
     """
     separator_str = ""
-    if carriage_pre:  # Empty print statement does a carriage return
+    if linefeed_pre:  # Empty print statement does a carriage return
         separator_str += ""
     if line:
         separator_str += "------------------------------------------------" \
                          "-------------------------------------------"
-    if carriage_post:
+    if linefeed_post:
         separator_str += "\n"
     return separator_str
 
 
-def decrypt_message(file_output_flag):
-    """
-    Function that calls the encrypt message with a flag to perform decryption
-    :param file_output_flag: A flag for whether the message should be saved to
-                            a file (passthrough)
-    """
-    encrypt_message(file_output_flag, True)  # True used as decryption flag
-
-
-def main_menu(file_output_flag):
-    """
-    A function for the main menu / start screen
-    :param file_output_flag: A flag for whether the message should be saved to
-                            a file
-    """
-    file_output_icon = " "
-    alt_fo_flag = True  # Opposite of file_output_flag if user toggles
-    if file_output_flag:
-        file_output_icon = "X"
-        alt_fo_flag = False
-
-    options = {"1": ("Encrypt", lambda: encrypt_message(file_output_flag)),
-               "2": ("Decrypt", lambda: decrypt_message(file_output_flag)),
-               "3": ("Toggle File Output", lambda: main_menu(alt_fo_flag)),
-               "4": ("Exit", lambda: exit("Application closing..."))}
-    user_choice = None
-    while user_choice not in options.keys():
-        for key, value in options.items():
-            print("{number}. {function}".format(number=key, function=value[0]))
-
-        print("[{}] File output".format(file_output_icon))
-        print(separator(carriage_pre=True))
-
-        user_choice = input("[?] Option:")
-
-        if user_choice in options.keys():
-            print(separator(line=True, carriage_post=True))
-            options[user_choice][1]()
-        else:
-            print("[*] Input must be a valid number.")
-            print(separator(line=True, carriage_post=True))
-
-
 if __name__ == '__main__':
-    title_card()
-    main_menu(False)
+    main()

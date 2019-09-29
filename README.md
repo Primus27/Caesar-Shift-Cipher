@@ -3,7 +3,7 @@
 # Caesar Shift Cipher
 
 ## Features
- - Menu & title card
+ - Menu & customisable title card
  - Encrypt Message
  - Decrypt Message
  - File Output
@@ -14,6 +14,7 @@
 
 ## Requirements and Installation
  - [Python 3.x](https://www.python.org/)
+ - Install all dependencies from the requirements.txt file. `pip install -r requirements.txt`
 
 ## Usage
  - Run cipher.py
@@ -32,4 +33,8 @@
     - Saves to Desktop (C:\ drive on Windows for current user)
  - Displays only relevant message (no prompt to shift numbers if only letters)
 #### Version 1.2
- - Altered the menu. More easily scalable
+ ~~- Altered the menu. More easily scalable~~
+#### Version 1.3
+ - Code refactored
+ - Removed improved menu from v1.2 (Added bugs)
+ - Added dynamic ASCII art
