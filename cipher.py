@@ -1,7 +1,7 @@
 """
 Title: Application for a simple caesar cipher w/ optional file output
 Author: Primus27
-Version: 1.1
+Version: 1.2
 """
 
 # Import packages
@@ -221,42 +221,33 @@ def decrypt_message(file_output_flag):
 def main_menu(file_output_flag):
     """
     A function for the main menu / start screen
-    :param file_output_flag: A flag for whether the message should be saved
-                            to a file
+    :param file_output_flag: A flag for whether the message should be saved to
+                            a file
     """
     file_output_icon = " "
+    alt_fo_flag = True  # Opposite of file_output_flag if user toggles
     if file_output_flag:
         file_output_icon = "X"
+        alt_fo_flag = False
 
-    choice = None
-    available_choices = [1, 2, 3, 4]
+    options = {"1": ("Encrypt", lambda: encrypt_message(file_output_flag)),
+               "2": ("Decrypt", lambda: decrypt_message(file_output_flag)),
+               "3": ("Toggle File Output", lambda: main_menu(alt_fo_flag)),
+               "4": ("Exit", lambda: exit("Application closing..."))}
+    user_choice = None
+    while user_choice not in options.keys():
+        for key, value in options.items():
+            print("{number}. {function}".format(number=key, function=value[0]))
 
-    while choice not in available_choices:
-        try:
-            print("1. Encrypt")
-            print("2. Decrypt")
-            print("3. Toggle file output")
-            print("4. Exit")
-            print("[{}] File output".format(file_output_icon))
-            print(separator(carriage_pre=True))
+        print("[{}] File output".format(file_output_icon))
+        print(separator(carriage_pre=True))
 
-            choice = int(input("[?] Option:"))
+        user_choice = input("[?] Option:")
+
+        if user_choice in options.keys():
             print(separator(line=True, carriage_post=True))
-
-            if choice == 1:
-                encrypt_message(file_output_flag)
-            elif choice == 2:
-                decrypt_message(file_output_flag)
-            elif choice == 3:
-                if file_output_flag:
-                    main_menu(False)
-                else:
-                    main_menu(True)
-            elif choice == 4:
-                exit("Application closing...")
-            else:
-                print("[*] Input must be a valid number.")
-        except ValueError:
+            options[user_choice][1]()
+        else:
             print("[*] Input must be a valid number.")
             print(separator(line=True, carriage_post=True))
 

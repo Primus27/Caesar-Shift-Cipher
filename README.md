@@ -31,3 +31,5 @@
  - Added file output
     - Saves to Desktop (C:\ drive on Windows for current user)
  - Displays only relevant message (no prompt to shift numbers if only letters)
+#### Version 1.2
+ - Altered the menu. More easily scalable
