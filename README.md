@@ -14,7 +14,7 @@
 
 ## Requirements and Installation
  - [Python 3.x](https://www.python.org/)
- - Install all dependencies from the requirements.txt file. `pip install -r requirements.txt`
+ - Install all dependencies from the requirements.txt file. `pip3 install -r requirements.txt`
 
 ## Usage
  - Run cipher.py
